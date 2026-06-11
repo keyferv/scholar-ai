@@ -22,11 +22,19 @@ pub fn run() {
             app.manage(config);
 
             let ai_bridge = AiBridge::new();
+            ai_bridge
+                .spawn_sidecar()
+                .expect("Failed to spawn sidecar");
             app.manage(ai_bridge);
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![health_check, get_app_info])
+        .invoke_handler(tauri::generate_handler![
+            health_check,
+            get_app_info,
+            ai_bridge::start_sidecar,
+            ai_bridge::sidecar_health_command,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

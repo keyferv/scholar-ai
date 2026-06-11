@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__/
+venv/
+
+# Rust
+src-tauri/target/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,4 +1,8 @@
+"""ScholarAI – Python sidecar AI service."""
+
 from fastapi import FastAPI
+
+from routers import chat, providers
 
 app = FastAPI(title="ScholarAI", version="0.1.0")
 
@@ -6,6 +10,10 @@ app = FastAPI(title="ScholarAI", version="0.1.0")
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "scholar-ai"}
+
+
+app.include_router(providers.router)
+app.include_router(chat.router)
 
 
 if __name__ == "__main__":

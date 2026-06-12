@@ -29,3 +29,6 @@ src-tauri/target/
 *.njsproj
 *.sln
 *.sw?
+ai-service/.venv/
+ai-service/scholar_ai.egg-info/
+ai-service/__pycache__/

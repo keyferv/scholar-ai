@@ -7,6 +7,12 @@ pub struct Database {
 
 impl Database {
     pub fn new(path: std::path::PathBuf) -> Result<Self> {
+        // Create parent directory if it doesn't exist.
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                rusqlite::Error::InvalidPath(format!("Failed to create dir {:?}: {}", parent, e).into())
+            })?;
+        }
         let conn = Connection::open(path)?;
         // Enable foreign keys for this connection (SQLite default is OFF).
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;

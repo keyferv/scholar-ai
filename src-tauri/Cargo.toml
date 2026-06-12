@@ -25,3 +25,4 @@ thiserror = "1"
 chrono = "0.4"
 uuid = { version = "1", features = ["v4"] }
 log = "0.4"
+keyring = "3"

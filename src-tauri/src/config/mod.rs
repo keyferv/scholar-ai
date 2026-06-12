@@ -6,7 +6,7 @@ use keyring::Entry;
 use serde_json;
 use thiserror::Error;
 
-pub use models::{AppConfig, ProviderMeta};
+pub use models::{AppConfig, ProviderMeta, ProviderType};
 
 const KEYRING_SERVICE: &str = "scholar-ai";
 

@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use reqwest::Client;
+use serde::Serialize;
+use serde_json::Value;
 
 /// Port the Python sidecar listens on.
 static SIDECAR_PORT: u16 = 8321;
@@ -129,6 +131,35 @@ impl AiBridge {
         Ok(body)
     }
 
+    /// POST request helper that sends JSON and returns parsed JSON.
+    ///
+    /// Sets `Content-Type: application/json` and uses `reqwest::Client`
+    /// (which sends `Content-Length` — no chunked transfer encoding).
+    async fn post(&self, path: &str, body: &impl Serialize) -> Result<Value, String> {
+        let url = format!("http://127.0.0.1:{}{}", SIDECAR_PORT, path);
+        let resp = self
+            .http_client
+            .post(&url)
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| format!("Sidecar POST {} failed: {}", path, e))?;
+
+        if !resp.status().is_success() {
+            return Err(format!(
+                "Sidecar POST {} returned status {}",
+                path,
+                resp.status()
+            ));
+        }
+
+        let body = resp
+            .json::<Value>()
+            .await
+            .map_err(|e| format!("Failed to parse sidecar response: {}", e))?;
+        Ok(body)
+    }
+
     /// Kill the sidecar process on cleanup.
     pub fn stop_sidecar(&self) {
         let pid = {
@@ -168,4 +199,53 @@ pub async fn sidecar_health_command(
     state: tauri::State<'_, AiBridge>,
 ) -> Result<serde_json::Value, String> {
     state.sidecar_health().await
+}
+
+/// Tauri command: send a POST to /api/v1/providers/test on the sidecar.
+#[tauri::command]
+pub async fn test_provider(
+    state: tauri::State<'_, AiBridge>,
+    provider_type: String,
+    model: String,
+    api_key: String,
+    base_url: Option<String>,
+) -> Result<serde_json::Value, String> {
+    #[derive(Serialize)]
+    struct TestRequest<'a> {
+        provider_type: &'a str,
+        model: &'a str,
+        api_key: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        base_url: Option<&'a str>,
+    }
+
+    let body = TestRequest {
+        provider_type: &provider_type,
+        model: &model,
+        api_key: &api_key,
+        base_url: base_url.as_deref(),
+    };
+
+    state.post("/api/v1/providers/test", &body).await
+}
+
+/// Tauri command: send a chat completion request to the sidecar.
+#[tauri::command]
+pub async fn send_chat_message(
+    state: tauri::State<'_, AiBridge>,
+    provider_id: String,
+    messages: Vec<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    #[derive(Serialize)]
+    struct ChatPayload<'a> {
+        provider_id: &'a str,
+        messages: &'a [serde_json::Value],
+    }
+
+    let body = ChatPayload {
+        provider_id: &provider_id,
+        messages: &messages,
+    };
+
+    state.post("/api/v1/chat/completions", &body).await
 }

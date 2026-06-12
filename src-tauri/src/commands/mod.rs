@@ -7,7 +7,7 @@ use crate::config::{ConfigManager, ProviderMeta, ProviderType};
 pub fn health_check() -> serde_json::Value {
     json!({
         "name": "ScholarAI",
-        "version": "0.1.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "status": "running",
     })
 }
@@ -17,7 +17,7 @@ pub fn health_check() -> serde_json::Value {
 pub fn get_app_info() -> serde_json::Value {
     json!({
         "name": "ScholarAI",
-        "version": "0.1.0",
+        "version": env!("CARGO_PKG_VERSION"),
     })
 }
 

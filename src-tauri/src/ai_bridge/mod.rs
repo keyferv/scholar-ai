@@ -52,6 +52,10 @@ impl AiBridge {
                 .arg("-m")
                 .arg("uvicorn")
                 .arg("main:app")
+                .arg("--host")
+                .arg("127.0.0.1")
+                .arg("--port")
+                .arg(SIDECAR_PORT.to_string())
                 .current_dir(&sidecar_dir)
                 .spawn()
             {
@@ -186,7 +190,14 @@ impl AiBridge {
     }
 }
 
-/// Tauri command: start the sidecar process (idempotent).
+impl Drop for AiBridge {
+    fn drop(&mut self) {
+        self.stop_sidecar();
+    }
+}
+
+/// Tauri command: start the sidecar process.
+/// Warning: each call spawns a new process. Call only once on startup.
 #[tauri::command]
 pub fn start_sidecar(_app: tauri::AppHandle, state: tauri::State<'_, AiBridge>) -> Result<String, String> {
     state.spawn_sidecar()?;

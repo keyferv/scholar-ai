@@ -4,7 +4,6 @@ mod config;
 mod db;
 
 use ai_bridge::AiBridge;
-use ai_bridge::{send_chat_message, test_provider};
 use commands::{
     add_provider, delete_provider, get_app_info, health_check, list_providers,
     set_active_provider, update_provider,
@@ -15,7 +14,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let db = Database::new(app.path().app_data_dir()?.join("scholar-ai.db"))?;
@@ -26,9 +25,11 @@ pub fn run() {
             app.manage(config);
 
             let ai_bridge = AiBridge::new();
-            ai_bridge
-                .spawn_sidecar()
-                .expect("Failed to spawn sidecar");
+            // Graceful degradation: if sidecar fails to spawn, log and continue.
+            // Commands that need the sidecar will return errors individually.
+            if let Err(e) = ai_bridge.spawn_sidecar() {
+                log::error!("Failed to spawn sidecar (will degrade gracefully): {}", e);
+            }
             app.manage(ai_bridge);
 
             Ok(())
@@ -46,6 +47,15 @@ pub fn run() {
             delete_provider,
             set_active_provider,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    // Hook sidecar cleanup to app exit.
+    app.run(|_app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            // Sidecar cleanup happens automatically when AiBridge is dropped.
+            // The Drop impl calls stop_sidecar().
+            log::info!("App exiting, cleaning up sidecar...");
+        }
+    });
 }

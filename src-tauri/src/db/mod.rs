@@ -8,6 +8,8 @@ pub struct Database {
 impl Database {
     pub fn new(path: std::path::PathBuf) -> Result<Self> {
         let conn = Connection::open(path)?;
+        // Enable foreign keys for this connection (SQLite default is OFF).
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -15,6 +17,9 @@ impl Database {
 
     pub fn run_migrations(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+
+        // Re-assert foreign keys (in case connection was recycled).
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS papers (

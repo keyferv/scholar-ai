@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:python": "python -m uvicorn main:app --host 127.0.0.1 --port 8321 --log-level info",
+    "dev:python": "python -m uvicorn main:app --host 127.0.0.1 --port 8321 --log-level info --app-dir ai-service",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

@@ -223,3 +223,175 @@ impl ConfigManager {
         Ok((meta, key))
     }
 }
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use std::env::temp_dir;
+    use uuid::Uuid;
+
+    use super::*;
+
+    /// Helper: create a ConfigManager backed by a temp file.
+    fn temp_config_manager() -> ConfigManager {
+        let mut path = temp_dir();
+        path.push(format!("scholar-ai-test-{}.json", Uuid::new_v4()));
+        ConfigManager::new(path)
+    }
+
+    #[test]
+    fn empty_config_roundtrip() {
+        let mgr = temp_config_manager();
+        let original = AppConfig::default();
+        mgr.write_config(&original).unwrap();
+
+        let loaded = mgr.read_config().unwrap();
+        assert_eq!(loaded.providers.len(), 0);
+        assert!(loaded.default_provider.is_none());
+    }
+
+    #[test]
+    fn write_and_read_providers() {
+        let mgr = temp_config_manager();
+
+        let meta1 = ProviderMeta {
+            id: "p1".into(),
+            name: "OpenAI".into(),
+            provider_type: ProviderType::OpenAi,
+            base_url: None,
+            model: Some("gpt-4o".into()),
+            key_id: Some("provider-p1".into()),
+            extra_headers: None,
+        };
+
+        let meta2 = ProviderMeta {
+            id: "p2".into(),
+            name: "Ollama".into(),
+            provider_type: ProviderType::Ollama,
+            base_url: Some("http://localhost:11434".into()),
+            model: Some("llama3".into()),
+            key_id: Some("provider-p2".into()),
+            extra_headers: None,
+        };
+
+        let mut config = AppConfig::default();
+        config.providers.push(meta1.clone());
+        config.providers.push(meta2.clone());
+
+        mgr.write_config(&config).unwrap();
+        let loaded = mgr.read_config().unwrap();
+
+        assert_eq!(loaded.providers.len(), 2);
+        assert_eq!(loaded.providers[0].id, "p1");
+        assert_eq!(loaded.providers[0].name, "OpenAI");
+        assert_eq!(loaded.providers[0].provider_type, ProviderType::OpenAi);
+        assert_eq!(loaded.providers[0].model.as_deref(), Some("gpt-4o"));
+        assert!(loaded.providers[0].key_id.is_some());
+
+        assert_eq!(loaded.providers[1].id, "p2");
+        assert_eq!(loaded.providers[1].provider_type, ProviderType::Ollama);
+        assert_eq!(
+            loaded.providers[1].base_url.as_deref(),
+            Some("http://localhost:11434")
+        );
+    }
+
+    #[test]
+    fn upsert_replaces_existing_provider() {
+        let mgr = temp_config_manager();
+
+        let meta_v1 = ProviderMeta {
+            id: "p1".into(),
+            name: "OpenAI v1".into(),
+            provider_type: ProviderType::OpenAi,
+            base_url: None,
+            model: Some("gpt-4".into()),
+            key_id: Some("provider-p1".into()),
+            extra_headers: None,
+        };
+
+        let meta_v2 = ProviderMeta {
+            id: "p1".into(),
+            name: "OpenAI v2".into(),
+            provider_type: ProviderType::OpenAi,
+            base_url: Some("https://api.openai.com/v1".into()),
+            model: Some("gpt-4o".into()),
+            key_id: Some("provider-p1".into()),
+            extra_headers: None,
+        };
+
+        let mut config = AppConfig::default();
+        config.providers.push(meta_v1);
+        mgr.write_config(&config).unwrap();
+
+        let mut config2 = AppConfig::default();
+        config2.providers.push(meta_v2.clone());
+        mgr.write_config(&config2).unwrap();
+
+        let loaded = mgr.read_config().unwrap();
+        assert_eq!(loaded.providers.len(), 1);
+        assert_eq!(loaded.providers[0].name, "OpenAI v2");
+        assert_eq!(
+            loaded.providers[0].base_url.as_deref(),
+            Some("https://api.openai.com/v1")
+        );
+    }
+
+    #[test]
+    fn default_provider_persists() {
+        let mgr = temp_config_manager();
+
+        let mut config = AppConfig {
+            default_provider: Some("p1".into()),
+            providers: vec![ProviderMeta {
+                id: "p1".into(),
+                name: "Test".into(),
+                provider_type: ProviderType::OpenAi,
+                base_url: None,
+                model: Some("gpt-4o".into()),
+                key_id: Some("provider-p1".into()),
+                extra_headers: None,
+            }],
+            theme: Some("dark".into()),
+            locale: Some("en-US".into()),
+        };
+
+        mgr.write_config(&config).unwrap();
+        let loaded = mgr.read_config().unwrap();
+
+        assert_eq!(loaded.default_provider.as_deref(), Some("p1"));
+        assert_eq!(loaded.theme.as_deref(), Some("dark"));
+        assert_eq!(loaded.locale.as_deref(), Some("en-US"));
+    }
+
+    #[test]
+    fn config_json_has_no_api_key_field() {
+        let mgr = temp_config_manager();
+
+        let meta = ProviderMeta {
+            id: "p1".into(),
+            name: "Test".into(),
+            provider_type: ProviderType::OpenAi,
+            base_url: None,
+            model: Some("gpt-4o".into()),
+            key_id: Some("provider-p1".into()),
+            extra_headers: None,
+        };
+
+        let mut config = AppConfig::default();
+        config.providers.push(meta);
+        mgr.write_config(&config).unwrap();
+
+        let raw = std::fs::read_to_string(&mgr.config_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&raw).unwrap();
+
+        let providers = json.get("providers").unwrap().as_array().unwrap();
+        for p in providers {
+            assert!(
+                p.get("api_key").is_none(),
+                "api_key must NEVER appear in config.json"
+            );
+        }
+    }
+}

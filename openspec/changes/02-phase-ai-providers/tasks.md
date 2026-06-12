@@ -74,12 +74,12 @@
 
 ## Phase 3: Rust Bridge Commands + AiBridge (T3)
 
-- [ ] 3.1 Modify `src-tauri/src/ai_bridge/mod.rs` to add `post(path, body)` helper with JSON serialization
-- [ ] 3.2 Create Tauri commands in `src-tauri/src/commands/mod.rs`: `list_providers`, `add_provider`, `update_provider`, `delete_provider`, `set_active_provider`, `test_provider`
-- [ ] 3.3 Create async Tauri command `send_chat_message(provider_id, messages)` in `commands/mod.rs` that calls `AiBridge::post("/api/v1/chat/completions")`
-- [ ] 3.4 Modify `src-tauri/src/lib.rs` to register new commands and pass `ConfigManager` to `AiBridge`
-- [ ] 3.5 Modify `src-tauri/capabilities/default.json` to add permissions for new commands
-- [ ] 3.6 Ensure snake_case field names in Rust serde structs match Pydantic models
+- [x] 3.1 Modify `src-tauri/src/ai_bridge/mod.rs` to add `post(path, body)` helper with JSON serialization
+- [x] 3.2 Create Tauri commands in `src-tauri/src/commands/mod.rs`: `list_providers`, `add_provider`, `update_provider`, `delete_provider`, `set_active_provider`, `test_provider`
+- [x] 3.3 Create async Tauri command `send_chat_message(provider_id, messages)` in `commands/mod.rs` that calls `AiBridge::post("/api/v1/chat/completions")`
+- [x] 3.4 Modify `src-tauri/src/lib.rs` to register new commands and pass `ConfigManager` to `AiBridge`
+- [x] 3.5 Modify `src-tauri/capabilities/default.json` to add permissions for new commands
+- [x] 3.6 Ensure snake_case field names in Rust serde structs match Pydantic models
 
 **Files created/modified:**
 - `src-tauri/src/ai_bridge/mod.rs` (modify)
